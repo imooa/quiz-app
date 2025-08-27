@@ -8,232 +8,201 @@ import {
   Divider,
   Button,
   Message,
+  Grid,
+  Header,
+  Icon,
 } from 'semantic-ui-react';
 
-import mindImg from '../../images/mind.svg';
-
-import {
-  CATEGORIES,
-  NUM_OF_QUESTIONS,
-  DIFFICULTY,
-  QUESTIONS_TYPE,
-  COUNTDOWN_TIME,
-} from '../../constants';
+import { QUIZ_DATA } from '../../constants/quizData';
 import { shuffle } from '../../utils';
 
-import Offline from '../Offline';
-
 const Main = ({ startQuiz }) => {
-  const [category, setCategory] = useState('0');
-  const [numOfQuestions, setNumOfQuestions] = useState(5);
-  const [difficulty, setDifficulty] = useState('easy');
-  const [questionsType, setQuestionsType] = useState('0');
   const [countdownTime, setCountdownTime] = useState({
-    hours: 0,
-    minutes: 120,
+    hours: 2,
+    minutes: 0,
     seconds: 0,
   });
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState(null);
-  const [offline, setOffline] = useState(false);
 
   const handleTimeChange = (e, { name, value }) => {
     setCountdownTime({ ...countdownTime, [name]: value });
   };
 
-  let allFieldsSelected = false;
-  if (
-    category &&
-    numOfQuestions &&
-    difficulty &&
-    questionsType &&
-    (countdownTime.hours || countdownTime.minutes || countdownTime.seconds)
-  ) {
-    allFieldsSelected = true;
-  }
+  const timeOptions = {
+    hours: [
+      { key: 0, text: '0 Hours', value: 0 },
+      { key: 1, text: '1 Hour', value: 1 },
+      { key: 2, text: '2 Hours', value: 2 },
+      { key: 3, text: '3 Hours', value: 3 },
+    ],
+    minutes: [
+      { key: 0, text: '0 Minutes', value: 0 },
+      { key: 30, text: '30 Minutes', value: 30 },
+      { key: 60, text: '60 Minutes', value: 60 },
+      { key: 90, text: '90 Minutes', value: 90 },
+      { key: 120, text: '120 Minutes', value: 120 },
+    ],
+    seconds: [
+      { key: 0, text: '0 Seconds', value: 0 },
+      { key: 30, text: '30 Seconds', value: 30 },
+      { key: 60, text: '60 Seconds', value: 60 },
+    ],
+  };
 
-  const fetchData = () => {
+  const startTest = () => {
     setProcessing(true);
 
     if (error) setError(null);
 
-    const API = `https://opentdb.com/api.php?amount=${numOfQuestions}&category=${category}&difficulty=${difficulty}&type=${questionsType}`;
+    setTimeout(() => {
+      // Shuffle the quiz data and format it for the quiz component
+      const shuffledData = shuffle([...QUIZ_DATA]);
+      
+      // Format data to match expected structure
+      const formattedData = shuffledData.map(item => ({
+        ...item,
+        incorrect_answers: item.options.filter(option => option !== item.correct_answer)
+      }));
 
-    fetch(API)
-      .then(respone => respone.json())
-      .then(data =>
-        setTimeout(() => {
-          const { response_code, results } = data;
-
-          if (response_code === 1) {
-            const message = (
-              <p>
-                The API doesn't have enough questions for your query. (Ex.
-                Asking for 50 Questions in a Category that only has 20.)
-                <br />
-                <br />
-                Please change the <strong>No. of Questions</strong>,{' '}
-                <strong>Difficulty Level</strong>, or{' '}
-                <strong>Type of Questions</strong>.
-              </p>
-            );
-
-            setProcessing(false);
-            setError({ message });
-
-            return;
-          }
-
-          results.forEach(element => {
-            element.options = shuffle([
-              element.correct_answer,
-              ...element.incorrect_answers,
-            ]);
-          });
-
-          setProcessing(false);
-          startQuiz(
-            results,
-            countdownTime.hours + countdownTime.minutes + countdownTime.seconds
-          );
-        }, 1000)
-      )
-      .catch(error =>
-        setTimeout(() => {
-          if (!navigator.onLine) {
-            setOffline(true);
-          } else {
-            setProcessing(false);
-            setError(error);
-          }
-        }, 1000)
+      setProcessing(false);
+      startQuiz(
+        formattedData,
+        countdownTime.hours * 3600 + countdownTime.minutes * 60 + countdownTime.seconds
       );
+    }, 1000);
   };
-
-  if (offline) return <Offline />;
 
   return (
     <Container>
-      <Segment>
-        <Item.Group divided>
-          <Item>
-            <Item.Image src={mindImg} />
-            <Item.Content>
-              <Item.Header>
-                <h1>The Ultimate Trivia Quiz</h1>
-              </Item.Header>
-              {error && (
-                <Message error onDismiss={() => setError(null)}>
-                  <Message.Header>Error!</Message.Header>
-                  {error.message}
-                </Message>
-              )}
-              <Divider />
-              <Item.Meta>
-                <p>In which category do you want to play the quiz?</p>
-                <Dropdown
-                  fluid
-                  selection
-                  name="category"
-                  placeholder="Select Quiz Category"
-                  header="Select Quiz Category"
-                  options={CATEGORIES}
-                  value={category}
-                  onChange={(e, { value }) => setCategory(value)}
-                  disabled={processing}
-                />
-                <br />
-                <p>How many questions do you want in your quiz?</p>
-                <Dropdown
-                  fluid
-                  selection
-                  name="numOfQ"
-                  placeholder="Select No. of Questions"
-                  header="Select No. of Questions"
-                  options={NUM_OF_QUESTIONS}
-                  value={numOfQuestions}
-                  onChange={(e, { value }) => setNumOfQuestions(value)}
-                  disabled={processing}
-                />
-                <br />
-                <p>How difficult do you want your quiz to be?</p>
-                <Dropdown
-                  fluid
-                  selection
-                  name="difficulty"
-                  placeholder="Select Difficulty Level"
-                  header="Select Difficulty Level"
-                  options={DIFFICULTY}
-                  value={difficulty}
-                  onChange={(e, { value }) => setDifficulty(value)}
-                  disabled={processing}
-                />
-                <br />
-                <p>Which type of questions do you want in your quiz?</p>
-                <Dropdown
-                  fluid
-                  selection
-                  name="type"
-                  placeholder="Select Questions Type"
-                  header="Select Questions Type"
-                  options={QUESTIONS_TYPE}
-                  value={questionsType}
-                  onChange={(e, { value }) => setQuestionsType(value)}
-                  disabled={processing}
-                />
-                <br />
-                <p>Please select the countdown time for your quiz.</p>
-                <Dropdown
-                  search
-                  selection
-                  name="hours"
-                  placeholder="Select Hours"
-                  header="Select Hours"
-                  options={COUNTDOWN_TIME.hours}
-                  value={countdownTime.hours}
-                  onChange={handleTimeChange}
-                  disabled={processing}
-                />
-                <Dropdown
-                  search
-                  selection
-                  name="minutes"
-                  placeholder="Select Minutes"
-                  header="Select Minutes"
-                  options={COUNTDOWN_TIME.minutes}
-                  value={countdownTime.minutes}
-                  onChange={handleTimeChange}
-                  disabled={processing}
-                />
-                <Dropdown
-                  search
-                  selection
-                  name="seconds"
-                  placeholder="Select Seconds"
-                  header="Select Seconds"
-                  options={COUNTDOWN_TIME.seconds}
-                  value={countdownTime.seconds}
-                  onChange={handleTimeChange}
-                  disabled={processing}
-                />
-              </Item.Meta>
-              <Divider />
-              <Item.Extra>
-                <Button
-                  primary
-                  size="big"
-                  icon="play"
-                  labelPosition="left"
-                  content={processing ? 'Processing...' : 'Play Now'}
-                  onClick={fetchData}
-                  disabled={!allFieldsSelected || processing}
-                />
-              </Item.Extra>
-            </Item.Content>
-          </Item>
-        </Item.Group>
+      <Segment style={{ padding: '3em 0em' }}>
+        <Grid container stackable verticalAlign="middle">
+          <Grid.Row>
+            <Grid.Column width={16} textAlign="center">
+              <Header as="h1" style={{ fontSize: '3em', color: '#2185d0', marginBottom: '0.5em' }}>
+                <Icon name="graduation cap" />
+                QuizStack
+              </Header>
+              <Header as="h2" style={{ fontSize: '1.7em', color: '#666', fontWeight: 'normal', marginBottom: '2em' }}>
+                Start Your Test by Team Beneficient
+              </Header>
+            </Grid.Column>
+          </Grid.Row>
+
+          <Grid.Row>
+            <Grid.Column width={16}>
+              <Segment raised style={{ padding: '2em' }}>
+                <Grid>
+                  <Grid.Row>
+                    <Grid.Column width={16} textAlign="center">
+                      <Header as="h3" style={{ color: '#333', marginBottom: '1em' }}>
+                        <Icon name="clock outline" />
+                        Set Your Test Duration
+                      </Header>
+                      <p style={{ fontSize: '1.1em', color: '#666', marginBottom: '2em' }}>
+                        Choose how much time you want to complete all 81 questions
+                      </p>
+                      
+                      {error && (
+                        <Message error onDismiss={() => setError(null)}>
+                          <Message.Header>Error!</Message.Header>
+                          {error.message}
+                        </Message>
+                      )}
+                    </Grid.Column>
+                  </Grid.Row>
+
+                  <Grid.Row>
+                    <Grid.Column width={5}>
+                      <label style={{ fontWeight: 'bold', color: '#333' }}>Hours</label>
+                      <Dropdown
+                        fluid
+                        selection
+                        name="hours"
+                        placeholder="Select Hours"
+                        options={timeOptions.hours}
+                        value={countdownTime.hours}
+                        onChange={handleTimeChange}
+                        disabled={processing}
+                      />
+                    </Grid.Column>
+                    <Grid.Column width={5}>
+                      <label style={{ fontWeight: 'bold', color: '#333' }}>Minutes</label>
+                      <Dropdown
+                        fluid
+                        selection
+                        name="minutes"
+                        placeholder="Select Minutes"
+                        options={timeOptions.minutes}
+                        value={countdownTime.minutes}
+                        onChange={handleTimeChange}
+                        disabled={processing}
+                      />
+                    </Grid.Column>
+                    <Grid.Column width={6}>
+                      <label style={{ fontWeight: 'bold', color: '#333' }}>Seconds</label>
+                      <Dropdown
+                        fluid
+                        selection
+                        name="seconds"
+                        placeholder="Select Seconds"
+                        options={timeOptions.seconds}
+                        value={countdownTime.seconds}
+                        onChange={handleTimeChange}
+                        disabled={processing}
+                      />
+                    </Grid.Column>
+                  </Grid.Row>
+
+                  <Grid.Row>
+                    <Grid.Column width={16} textAlign="center" style={{ paddingTop: '2em' }}>
+                      <Button
+                        primary
+                        size="huge"
+                        icon="play"
+                        labelPosition="left"
+                        content={processing ? 'Starting Test...' : 'Start Test Now'}
+                        onClick={startTest}
+                        disabled={
+                          processing || 
+                          (!countdownTime.hours && !countdownTime.minutes && !countdownTime.seconds)
+                        }
+                        style={{
+                          background: 'linear-gradient(45deg, #2185d0, #1e70bf)',
+                          fontSize: '1.2em',
+                          padding: '1em 2em',
+                          boxShadow: '0 4px 15px rgba(33, 133, 208, 0.3)'
+                        }}
+                      />
+                    </Grid.Column>
+                  </Grid.Row>
+                </Grid>
+              </Segment>
+            </Grid.Column>
+          </Grid.Row>
+
+          <Grid.Row>
+            <Grid.Column width={16} textAlign="center">
+              <Segment style={{ 
+                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                color: 'white',
+                border: 'none',
+                borderRadius: '15px',
+                padding: '2em',
+                marginTop: '2em'
+              }}>
+                <Header as="h4" style={{ color: 'white', marginBottom: '0.5em' }}>
+                  <Icon name="heart" />
+                  Powered by Imoogle Technology
+                </Header>
+                <p style={{ fontSize: '1em', margin: 0, opacity: 0.9 }}>
+                  Advanced quiz platform built with modern web technologies
+                </p>
+              </Segment>
+            </Grid.Column>
+          </Grid.Row>
+        </Grid>
       </Segment>
-      <br />
     </Container>
   );
 };
